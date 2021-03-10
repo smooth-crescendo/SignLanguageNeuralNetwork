@@ -182,7 +182,7 @@ model.save('sign_model')
 data = test_dataset.take(1)
 
 points, labels = list(data)[0]
-points = points[:1, ...]
+points = points[:8, ...]
 labels = labels[:8, ...]
 
 # run test data through model
