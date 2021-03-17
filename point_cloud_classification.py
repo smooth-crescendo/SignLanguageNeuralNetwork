@@ -59,7 +59,24 @@ def read_data(filename):
             if len(hand) == 21:
                 result.append(hand)
                 hand = []
+
+    result = align_axis(result, 0)
+    result = align_axis(result, 1)
+    result = align_axis(result, 2)
+
     return result
+
+
+def align_axis(data, ax):
+    for j in range(len(data)):
+        min = 100
+        for i in range(21):
+            v = data[j][i][ax]
+            if v < min:
+                min = v
+        for i in range(21):
+            data[j][i][ax] -= min
+    return data
 
 
 def parse_dataset(num_points=2048):
@@ -166,7 +183,7 @@ x = layers.Dropout(0.3)(x)
 outputs = layers.Dense(NUM_CLASSES, activation="softmax", name="signs_probabilities")(x)
 
 model = keras.Model(inputs=inputs, outputs=outputs, name="pointnet")
-model.summary()
+# model.summary()
 
 model.compile(
     loss="sparse_categorical_crossentropy",
