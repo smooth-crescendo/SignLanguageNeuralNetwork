@@ -4,8 +4,11 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 from matplotlib import pyplot as plt
+from math import sqrt
 
 tf.random.set_seed(1234)
+
+NUM_SIGNS = 12
 
 
 class OrthogonalRegularizer(keras.regularizers.Regularizer):
@@ -64,7 +67,22 @@ def read_data(filename):
     result = align_axis(result, 1)
     result = align_axis(result, 2)
 
+    for hand in result:
+        normalize(hand)
+
     return result
+
+
+def normalize(hand):
+    max_axis_value = -100
+    for point in hand:
+        for axis in point:
+            if (axis > max_axis_value):
+                max_axis_value = axis
+    for point_index in range(len(hand)):
+        hand[point_index][0] /= max_axis_value
+        hand[point_index][1] /= max_axis_value
+        hand[point_index][2] /= max_axis_value
 
 
 def align_axis(data, ax):
@@ -79,48 +97,26 @@ def align_axis(data, ax):
     return data
 
 
-def parse_dataset(num_points=2048):
+def parse_dataset(num_points):
     train_points = []
     train_labels = []
     test_points = []
     test_labels = []
-    class_map = {0: "letter a", 1: "letter b", 2: "letter c", 3: "letter d", 4: "letter e"}
 
-    points_a = read_data("training_data_a.txt")
-    points_b = read_data("training_data_b.txt")
-    points_c = read_data("training_data_c.txt")
-    points_d = read_data("training_data_d.txt")
-    points_e = read_data("training_data_e.txt")
+    class_map = {}
 
-    test_points.append(points_a.pop(0))
-    test_points.append(points_a.pop(8))
-    test_points.append(points_b.pop(4))
-    test_points.append(points_b.pop(8))
-    test_points.append(points_c.pop(4))
-    test_points.append(points_c.pop(8))
-    test_points.append(points_d.pop(4))
-    test_points.append(points_e.pop(4))
+    for i in range(NUM_SIGNS):
+        letter = chr(ord('a') + i)
+        class_map.setdefault(i, "letter " + letter)
 
-    test_labels.append(0)
-    test_labels.append(0)
-    test_labels.append(1)
-    test_labels.append(1)
-    test_labels.append(2)
-    test_labels.append(2)
-    test_labels.append(3)
-    test_labels.append(4)
+        points = read_data("training_data/training_data_"+letter+".txt")
 
-    train_points.extend(points_a)
-    train_points.extend(points_b)
-    train_points.extend(points_c)
-    train_points.extend(points_d)
-    train_points.extend(points_e)
+        test_points.append(points.pop(4))
+        test_labels.append(i)
 
-    train_labels.extend([0] * len(points_a))
-    train_labels.extend([1] * len(points_b))
-    train_labels.extend([2] * len(points_c))
-    train_labels.extend([3] * len(points_d))
-    train_labels.extend([4] * len(points_e))
+        train_points.extend(points)
+
+        train_labels.extend([i] * len(points))
 
     return (
         np.array(train_points),
@@ -152,7 +148,6 @@ def dense_bn(x, filters):
 
 
 NUM_POINTS = 21
-NUM_CLASSES = 5
 BATCH_SIZE = 32
 
 train_points, test_points, train_labels, test_labels, CLASS_MAP = parse_dataset(
@@ -180,7 +175,7 @@ x = layers.Dropout(0.3)(x)
 x = dense_bn(x, 128)
 x = layers.Dropout(0.3)(x)
 
-outputs = layers.Dense(NUM_CLASSES, activation="softmax", name="signs_probabilities")(x)
+outputs = layers.Dense(NUM_SIGNS, activation="softmax", name="signs_probabilities")(x)
 
 model = keras.Model(inputs=inputs, outputs=outputs, name="pointnet")
 # model.summary()
@@ -191,7 +186,7 @@ model.compile(
     metrics=["sparse_categorical_accuracy"],
 )
 
-model.fit(train_dataset, epochs=20, validation_data=test_dataset)
+model.fit(train_dataset, epochs=15, validation_data=test_dataset)
 
 # Save the model
 model.save('sign_model')
